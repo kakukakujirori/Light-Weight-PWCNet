@@ -1,0 +1,11 @@
+_target_: src.datamodules.youtubevos_datamodule.YouTubeVOSDataModule
+data_dir: ${paths.data_dir}
+train_videolist: ${paths.filelists_dir}/youtube-vos/train.json
+val_videolist: ${paths.filelists_dir}/youtube-vos/test.json
+test_videolist: ${paths.filelists_dir}/youtube-vos/test.json
+max_frame_diff: 4
+width: 640
+height: 640
+batch_size: 8
+num_workers: 4
+pin_memory: True

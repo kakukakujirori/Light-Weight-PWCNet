@@ -1,16 +1,14 @@
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Optional
 
 import torch
 from pytorch_lightning import LightningDataModule
-from torch.utils.data import ConcatDataset, DataLoader, Dataset, random_split
-from torchvision.datasets import MNIST
-from torchvision.transforms import transforms
+from torch.utils.data import DataLoader, Dataset
+
+from src.datamodules.components.youtubevos_dataset import YouTubeVOSDataset
 
 
-class MNISTDataModule(LightningDataModule):
-    """Example of LightningDataModule for MNIST dataset.
-
-    A DataModule implements 5 key methods:
+class YouTubeVOSDataModule(LightningDataModule):
+    """A DataModule implements 5 key methods:
 
         def prepare_data(self):
             # things to do on 1 GPU/TPU (not on every GPU/TPU in DDP)
@@ -37,10 +35,15 @@ class MNISTDataModule(LightningDataModule):
 
     def __init__(
         self,
-        data_dir: str = "data/",
-        train_val_test_split: Tuple[int, int, int] = (55_000, 5_000, 10_000),
-        batch_size: int = 64,
-        num_workers: int = 0,
+        data_dir: str,
+        train_videolist: str,
+        val_videolist: str,
+        test_videolist: str,
+        max_frame_diff: int,
+        width: int,
+        height: int,
+        batch_size: int = 8,
+        num_workers: int = 4,
         pin_memory: bool = False,
     ):
         super().__init__()
@@ -49,26 +52,9 @@ class MNISTDataModule(LightningDataModule):
         # also ensures init params will be stored in ckpt
         self.save_hyperparameters(logger=False)
 
-        # data transformations
-        self.transforms = transforms.Compose(
-            [transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))]
-        )
-
         self.data_train: Optional[Dataset] = None
         self.data_val: Optional[Dataset] = None
         self.data_test: Optional[Dataset] = None
-
-    @property
-    def num_classes(self):
-        return 10
-
-    def prepare_data(self):
-        """Download data if needed.
-
-        Do not use it to assign state (self.x = y).
-        """
-        MNIST(self.hparams.data_dir, train=True, download=True)
-        MNIST(self.hparams.data_dir, train=False, download=True)
 
     def setup(self, stage: Optional[str] = None):
         """Load data. Set variables: `self.data_train`, `self.data_val`, `self.data_test`.
@@ -77,14 +63,31 @@ class MNISTDataModule(LightningDataModule):
         careful not to execute things like random split twice!
         """
         # load and split datasets only if not loaded already
-        if not self.data_train and not self.data_val and not self.data_test:
-            trainset = MNIST(self.hparams.data_dir, train=True, transform=self.transforms)
-            testset = MNIST(self.hparams.data_dir, train=False, transform=self.transforms)
-            dataset = ConcatDataset(datasets=[trainset, testset])
-            self.data_train, self.data_val, self.data_test = random_split(
-                dataset=dataset,
-                lengths=self.hparams.train_val_test_split,
-                generator=torch.Generator().manual_seed(42),
+        if stage == 'fit' and not self.data_train and not self.data_val:
+            self.data_train = YouTubeVOSDataset(
+                self.hparams.data_dir,
+                self.hparams.train_videolist,
+                self.hparams.max_frame_diff,
+                self.hparams.width,
+                self.hparams.height,
+                is_train=True,
+            )
+            self.data_val = YouTubeVOSDataset(
+                self.hparams.data_dir,
+                self.hparams.val_videolist,
+                self.hparams.max_frame_diff,
+                self.hparams.width,
+                self.hparams.height,
+                is_train=False,
+            )
+        if stage == 'test' and not self.data_test:
+            self.data_test = YouTubeVOSDataset(
+                self.hparams.data_dir,
+                self.hparams.test_videolist,
+                self.hparams.max_frame_diff,
+                self.hparams.width,
+                self.hparams.height,
+                is_train=False,
             )
 
     def train_dataloader(self):
@@ -133,6 +136,6 @@ if __name__ == "__main__":
     import pyrootutils
 
     root = pyrootutils.setup_root(__file__, pythonpath=True)
-    cfg = omegaconf.OmegaConf.load(root / "configs" / "datamodule" / "mnist.yaml")
+    cfg = omegaconf.OmegaConf.load(root / "configs" / "datamodule" / "youtubevos.yaml")
     cfg.data_dir = str(root / "data")
     _ = hydra.utils.instantiate(cfg)
