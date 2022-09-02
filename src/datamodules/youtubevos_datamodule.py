@@ -63,7 +63,7 @@ class YouTubeVOSDataModule(LightningDataModule):
         careful not to execute things like random split twice!
         """
         # load and split datasets only if not loaded already
-        if stage == 'fit' and not self.data_train and not self.data_val:
+        if stage == "fit" and not self.data_train and not self.data_val:
             self.data_train = YouTubeVOSDataset(
                 self.hparams.data_dir,
                 self.hparams.train_videolist,
@@ -80,7 +80,7 @@ class YouTubeVOSDataModule(LightningDataModule):
                 self.hparams.height,
                 is_train=False,
             )
-        if stage == 'test' and not self.data_test:
+        if stage == "test" and not self.data_test:
             self.data_test = YouTubeVOSDataset(
                 self.hparams.data_dir,
                 self.hparams.test_videolist,
@@ -125,7 +125,7 @@ class YouTubeVOSDataModule(LightningDataModule):
         """Extra things to save to checkpoint."""
         return {}
 
-    def load_state_dict(self, state_dict: Dict[str, Any]):
+    def load_state_dict(self, state_dict: dict[str, Any]):
         """Things to do when loading checkpoint."""
         pass
 

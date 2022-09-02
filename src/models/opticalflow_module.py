@@ -1,9 +1,9 @@
 from typing import Any, List
+
 import torch
 import torch.nn.functional as F
 from pytorch_lightning import LightningModule
-from torchvision.models.optical_flow import Raft_Large_Weights
-from torchvision.models.optical_flow import raft_large
+from torchvision.models.optical_flow import Raft_Large_Weights, raft_large
 from torchvision.utils import flow_to_image
 
 from src.models.components.metric import EPE
@@ -11,6 +11,7 @@ from src.models.components.metric import EPE
 
 class OpticalFlowModule(LightningModule):
     """A LightningModule organizes your PyTorch code into 6 sections:
+
         - Computations (init).
         - Train loop (training_step)
         - Validation loop (validation_step)
@@ -39,7 +40,8 @@ class OpticalFlowModule(LightningModule):
         raft_weights = Raft_Large_Weights.DEFAULT
         self.raft_transforms = raft_weights.transforms()
         self.raft = raft_large(weights=raft_weights, progress=False).eval()
-        for p in self.raft.parameters(): p.requires_grad_(False)
+        for p in self.raft.parameters():
+            p.requires_grad_(False)
 
         # loss function
         self.criterion = torch.nn.L1Loss()
@@ -57,9 +59,9 @@ class OpticalFlowModule(LightningModule):
 
     def step(self, batch: Any):
         # student
-        img1, img2 = batch['img1'], batch['img2']
+        img1, img2 = batch["img1"], batch["img2"]
         pred_list = self.forward(img1, img2)
-        
+
         # teacher
         img1_raft, img2_raft = self.raft_transforms(img1, img2)
         with torch.no_grad():
@@ -71,9 +73,9 @@ class OpticalFlowModule(LightningModule):
         assert len(pred_list) <= len(self.weights), f"{len(pred_list)=}, {len(self.weights)=}"
         loss = 0
         for i, (pred, w) in enumerate(zip(pred_list, self.weights)):
-            gt_small = F.interpolate(gt, pred.shape[-2:], mode='bilinear')
-            loss += self.criterion(pred * (i+1), gt_small) * w
-        
+            gt_small = F.interpolate(gt, pred.shape[-2:], mode="bilinear")
+            loss += self.criterion(pred * (i + 1), gt_small) * w
+
         return loss, pred_list[0], gt
 
     def training_step(self, batch: Any, batch_idx: int):
@@ -85,18 +87,28 @@ class OpticalFlowModule(LightningModule):
         self.log("train/epe", epe, on_step=False, on_epoch=True, prog_bar=True)
 
         # log images
-        if batch_idx == 0 and self.logger.get('experiment', None) is not None:
-            self.logger.experiment.add_images('train/image1', torch.clip(batch['img1'] * 255, 0, 255).to(torch.uint8), self.current_epoch)
-            self.logger.experiment.add_images('train/image2', torch.clip(batch['img2'] * 255, 0, 255).to(torch.uint8), self.current_epoch)
-            self.logger.experiment.add_images('train/pred', flow_to_image(preds), self.current_epoch)
-            self.logger.experiment.add_images('train/gt', flow_to_image(gts), self.current_epoch)
+        if batch_idx == 0 and self.logger.get("experiment", None) is not None:
+            self.logger.experiment.add_images(
+                "train/image1",
+                torch.clip(batch["img1"] * 255, 0, 255).to(torch.uint8),
+                self.current_epoch,
+            )
+            self.logger.experiment.add_images(
+                "train/image2",
+                torch.clip(batch["img2"] * 255, 0, 255).to(torch.uint8),
+                self.current_epoch,
+            )
+            self.logger.experiment.add_images(
+                "train/pred", flow_to_image(preds), self.current_epoch
+            )
+            self.logger.experiment.add_images("train/gt", flow_to_image(gts), self.current_epoch)
 
         # we can return here dict with any tensors
         # and then read it in some callback or in `training_epoch_end()` below
         # remember to always return loss from `training_step()` or else backpropagation will fail!
         return loss
 
-    def training_epoch_end(self, outputs: List[Any]):
+    def training_epoch_end(self, outputs: list[Any]):
         # `outputs` is a list of dicts returned from `training_step()`
         pass
 
@@ -109,15 +121,23 @@ class OpticalFlowModule(LightningModule):
         self.log("val/epe", epe, on_step=False, on_epoch=True, prog_bar=True)
 
         # log images
-        if batch_idx == 0 and self.logger.get('experiment', None) is not None:
-            self.logger.experiment.add_images('val/image1', torch.clip(batch['img1'] * 255, 0, 255).to(torch.uint8), self.current_epoch)
-            self.logger.experiment.add_images('val/image2', torch.clip(batch['img2'] * 255, 0, 255).to(torch.uint8), self.current_epoch)
-            self.logger.experiment.add_images('val/pred', flow_to_image(preds), self.current_epoch)
-            self.logger.experiment.add_images('val/gt', flow_to_image(gts), self.current_epoch)
+        if batch_idx == 0 and self.logger.get("experiment", None) is not None:
+            self.logger.experiment.add_images(
+                "val/image1",
+                torch.clip(batch["img1"] * 255, 0, 255).to(torch.uint8),
+                self.current_epoch,
+            )
+            self.logger.experiment.add_images(
+                "val/image2",
+                torch.clip(batch["img2"] * 255, 0, 255).to(torch.uint8),
+                self.current_epoch,
+            )
+            self.logger.experiment.add_images("val/pred", flow_to_image(preds), self.current_epoch)
+            self.logger.experiment.add_images("val/gt", flow_to_image(gts), self.current_epoch)
 
         return loss
 
-    def validation_epoch_end(self, outputs: List[Any]):
+    def validation_epoch_end(self, outputs: list[Any]):
         pass
 
     def test_step(self, batch: Any, batch_idx: int):
@@ -130,7 +150,7 @@ class OpticalFlowModule(LightningModule):
 
         return loss
 
-    def test_epoch_end(self, outputs: List[Any]):
+    def test_epoch_end(self, outputs: list[Any]):
         pass
 
     def configure_optimizers(self):
@@ -142,7 +162,9 @@ class OpticalFlowModule(LightningModule):
         """
         optimizer = self.hparams.optimizer(params=self.parameters())
         scheduler = torch.optim.lr_scheduler.OneCycleLR(
-            optimizer, optimizer.param_groups[0]['lr'], total_steps=self.trainer.estimated_stepping_batches
+            optimizer,
+            optimizer.param_groups[0]["lr"],
+            total_steps=self.trainer.estimated_stepping_batches,
         )
         return [optimizer], [scheduler]
 

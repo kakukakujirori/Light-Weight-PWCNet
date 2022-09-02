@@ -5,7 +5,6 @@ import torch
 
 from src.datamodules.youtubevos_datamodule import YouTubeVOSDataModule
 
-
 # @pytest.mark.parametrize("batch_size", [32, 128])
 # def test_mnist_datamodule(batch_size):
 #     data_dir = "data/"

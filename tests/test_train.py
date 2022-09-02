@@ -7,7 +7,6 @@ from omegaconf import open_dict
 from src.train import train
 from tests.helpers.run_if import RunIf
 
-
 # def test_train_fast_dev_run(cfg_train):
 #     """Run for 1 train, val and test step."""
 #     HydraConfig().set_config(cfg_train)

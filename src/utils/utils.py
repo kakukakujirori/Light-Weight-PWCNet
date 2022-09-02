@@ -90,9 +90,9 @@ def save_file(path: str, content: str) -> None:
         file.write(content)
 
 
-def instantiate_callbacks(callbacks_cfg: DictConfig) -> List[Callback]:
+def instantiate_callbacks(callbacks_cfg: DictConfig) -> list[Callback]:
     """Instantiates callbacks from config."""
-    callbacks: List[Callback] = []
+    callbacks: list[Callback] = []
 
     if not callbacks_cfg:
         log.warning("Callbacks config is empty.")
@@ -109,9 +109,9 @@ def instantiate_callbacks(callbacks_cfg: DictConfig) -> List[Callback]:
     return callbacks
 
 
-def instantiate_loggers(logger_cfg: DictConfig) -> List[LightningLoggerBase]:
+def instantiate_loggers(logger_cfg: DictConfig) -> list[LightningLoggerBase]:
     """Instantiates loggers from config."""
-    logger: List[LightningLoggerBase] = []
+    logger: list[LightningLoggerBase] = []
 
     if not logger_cfg:
         log.warning("Logger config is empty.")
