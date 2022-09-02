@@ -3,6 +3,7 @@ from typing import Any, List
 import torch
 import torch.nn.functional as F
 from pytorch_lightning import LightningModule
+from pytorch_lightning.loggers import TensorBoardLogger
 from torchvision.models.optical_flow import Raft_Large_Weights, raft_large
 from torchvision.utils import flow_to_image
 
@@ -70,13 +71,17 @@ class OpticalFlowModule(LightningModule):
         del list_of_flows
 
         # loss (be aware to align the cale of flow vectors)
-        assert len(pred_list) <= len(self.weights), f"{len(pred_list)=}, {len(self.weights)=}"
+        assert len(pred_list) <= len(
+            self.hparams.weights
+        ), f"{len(pred_list)=}, {len(self.hparams.weights)=}"
         loss = 0
-        for i, (pred, w) in enumerate(zip(pred_list, self.weights)):
+        for i, (pred, w) in enumerate(zip(pred_list, self.hparams.weights)):
             gt_small = F.interpolate(gt, pred.shape[-2:], mode="bilinear")
             loss += self.criterion(pred * (i + 1), gt_small) * w
 
-        return loss, pred_list[0], gt
+        pred_out = F.interpolate(pred_list[0], size=gt.shape[-2:], mode="bilinear")
+
+        return loss, pred_out, gt
 
     def training_step(self, batch: Any, batch_idx: int):
         loss, preds, gts = self.step(batch)
@@ -87,7 +92,7 @@ class OpticalFlowModule(LightningModule):
         self.log("train/epe", epe, on_step=False, on_epoch=True, prog_bar=True)
 
         # log images
-        if batch_idx == 0 and self.logger.get("experiment", None) is not None:
+        if batch_idx == 0 and isinstance(self.logger, TensorBoardLogger):
             self.logger.experiment.add_images(
                 "train/image1",
                 torch.clip(batch["img1"] * 255, 0, 255).to(torch.uint8),
@@ -121,7 +126,7 @@ class OpticalFlowModule(LightningModule):
         self.log("val/epe", epe, on_step=False, on_epoch=True, prog_bar=True)
 
         # log images
-        if batch_idx == 0 and self.logger.get("experiment", None) is not None:
+        if batch_idx == 0 and isinstance(self.logger, TensorBoardLogger):
             self.logger.experiment.add_images(
                 "val/image1",
                 torch.clip(batch["img1"] * 255, 0, 255).to(torch.uint8),

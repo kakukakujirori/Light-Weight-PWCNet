@@ -1,6 +1,5 @@
 from typing import Any, Dict, Optional
 
-import torch
 from pytorch_lightning import LightningDataModule
 from torch.utils.data import DataLoader, Dataset
 

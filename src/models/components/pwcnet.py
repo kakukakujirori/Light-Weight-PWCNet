@@ -9,8 +9,8 @@ import torch.nn.functional as F
 def bilinear_warp(x: torch.Tensor, flow: torch.Tensor):
     h, w = x.shape[-2:]
     grid_x, grid_y = torch.meshgrid(torch.arange(h), torch.arange(w), indexing="xy")
-    grid_x = grid_x.reshape(1, 1, *grid_y.shape)
-    grid_y = grid_y.reshape(1, 1, *grid_y.shape)
+    grid_x = grid_x.reshape(1, 1, *grid_y.shape).type_as(flow)
+    grid_y = grid_y.reshape(1, 1, *grid_y.shape).type_as(flow)
 
     fx, fy = torch.chunk(flow, chunks=2, dim=1)
     gx, gy = grid_x + fx, grid_y + fy
@@ -20,7 +20,7 @@ def bilinear_warp(x: torch.Tensor, flow: torch.Tensor):
     gy = (gy + 0.5) * 2 / h - 1
     gxy = torch.cat([gx, gy], dim=1).permute(0, 2, 3, 1)
 
-    return F.grid_sample(x, gxy)
+    return F.grid_sample(x, gxy, align_corners=False)
 
 
 class ConvPReLU(nn.Module):

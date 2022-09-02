@@ -1,7 +1,6 @@
 import io
 import json
 import os
-import random
 import zipfile
 
 import albumentations as A
@@ -123,4 +122,4 @@ class YouTubeVOSDataset(Dataset):
             img1_t = transformed["image"]
             img2_t = transformed["image2"]
 
-        return img1_t, img2_t
+        return {"img1": img1_t, "img2": img2_t}
