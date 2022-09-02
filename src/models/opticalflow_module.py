@@ -79,9 +79,9 @@ class OpticalFlowModule(LightningModule):
             gt_small = F.interpolate(gt, pred.shape[-2:], mode="bilinear")
             loss += self.criterion(pred * (i + 1), gt_small) * w
 
-        pred_out = pred_list[0] * torch.Tensor(
-            [gt.shape[-1] / pred_list[0].shape[-1], gt.shape[-2] / pred_list[0].shape[-2]]
-        ).reshape(1, 2, 1, 1)
+        pred_out = pred_list[0]
+        pred_out[:, 0, :, :] *= gt.shape[-1] / pred_list[0].shape[-1]
+        pred_out[:, 1, :, :] *= gt.shape[-2] / pred_list[0].shape[-2]
         pred_out = F.interpolate(pred_out, size=gt.shape[-2:], mode="bilinear")
 
         return loss, pred_out, gt

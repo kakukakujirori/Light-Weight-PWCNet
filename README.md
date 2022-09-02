@@ -7,7 +7,7 @@
 <a href="https://hydra.cc/"><img alt="Config: Hydra" src="https://img.shields.io/badge/Config-Hydra-89b8cd"></a>
 <a href="https://github.com/ashleve/lightning-hydra-template"><img alt="Template" src="https://img.shields.io/badge/-Lightning--Hydra--Template-017F2F?style=flat&logo=github&labelColor=gray"></a><br>
 [![Paper](http://img.shields.io/badge/paper-arxiv.1001.2234-B31B1B.svg)](https://arxiv.org/abs/2207.11617)
-[![SIGGRAPH2022](http://img.shields.io/badge/AnyConference-year-4b44ce.svg)](https://www.wslai.net/publications/fusion_deblur/)
+[![Conference](http://img.shields.io/badge/SIGGRAPH-2022-4b44ce.svg)](https://www.wslai.net/publications/fusion_deblur/)
 
 </div>
 
