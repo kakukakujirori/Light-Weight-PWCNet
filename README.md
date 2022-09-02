@@ -23,8 +23,8 @@ Install dependencies
 
 ```bash
 # clone project
-git clone https://github.com/YourGithubName/your-repo-name
-cd your-repo-name
+git clone https://github.com/kakukakujirori/Light-Weight-PWCNet.git
+cd Light-Weight-PWCNet
 
 # [OPTIONAL] create conda environment
 conda create -n myenv python=3.9
@@ -36,6 +36,8 @@ conda activate myenv
 # install requirements
 pip install -r requirements.txt
 ```
+
+Download [YouTube-VOS](https://competitions.codalab.org/competitions/19544#participate-get-data) dataset (train_all_frames and test_all_frames) under `data/` directory, and upzip them
 
 Train model with default configuration
 
