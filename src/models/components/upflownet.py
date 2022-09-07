@@ -451,26 +451,14 @@ class UPFlowNet(nn.Module):
         else:
             self.sgi_model = None
 
-    def forward(self, img1: torch.Tensor, img2: torch.Tensor):
-        flow_f_pwc_out, flow_b_pwc_out, flows = self.forward_2_frame_v3(
-            img1, img2
-        )  # forward estimation
-        return flow_f_pwc_out, flow_b_pwc_out
-
-    def forward_2_frame_v3(self, x1_raw: torch.Tensor, x2_raw: torch.Tensor):
+    def forward(self, x1_raw: torch.Tensor, x2_raw: torch.Tensor):
         # on the bottom level are original images
         x1_pyramid = self.feature_pyramid_extractor(x1_raw) + [x1_raw]
         x2_pyramid = self.feature_pyramid_extractor(x2_raw) + [x2_raw]
         flows = []
         # init
-        (
-            b_size,
-            _,
-            h_x1,
-            w_x1,
-        ) = x1_pyramid[0].shape
+        b_size, _, h_x1, w_x1 = x1_pyramid[0].shape
         flow_f = torch.zeros(b_size, 2, h_x1, w_x1, device=x1_raw.device)
-        flow_b = torch.zeros(b_size, 2, h_x1, w_x1, device=x1_raw.device)
         # build pyramid
         feature_level_ls = []
         for level, (x1, x2) in enumerate(zip(x1_pyramid, x2_pyramid)):
@@ -480,10 +468,9 @@ class UPFlowNet(nn.Module):
             if level == self.output_level:
                 break
         for level, (x1, x1_1by1, x2, x2_1by1) in enumerate(feature_level_ls):
-            flow_f, flow_b, flow_f_res, flow_b_res = self.decode_level_res(
+            flow_f, flow_f_res = self.decode_level_res(
                 level=level,
                 flow_1=flow_f,
-                flow_2=flow_b,
                 feature_1=x1,
                 feature_1_1x1=x1_1by1,
                 feature_2=x2,
@@ -492,10 +479,8 @@ class UPFlowNet(nn.Module):
                 img_ori_2=x2_raw,
             )
             flow_f = flow_f + flow_f_res
-            flow_b = flow_b + flow_b_res
-            flows.append([flow_f, flow_b])
+            flows.append(flow_f)
         flow_f_out = upsample2d_flow_as(flow_f, x1_raw, mode="bilinear", if_rate=True)
-        flow_b_out = upsample2d_flow_as(flow_b, x1_raw, mode="bilinear", if_rate=True)
 
         # === upsample to full resolution
         if self.if_sgu_upsample:
@@ -507,20 +492,15 @@ class UPFlowNet(nn.Module):
                 feature_2=feature_2_1x1,
                 output_level_flow=flow_f_out,
             )
-            flow_b_out = self.self_guided_upsample(
-                flow_up_bilinear=flow_b,
-                feature_1=feature_2_1x1,
-                feature_2=feature_1_1x1,
-                output_level_flow=flow_b_out,
-            )
 
-        return flow_f_out, flow_b_out, flows[::-1]
+        flows.append(flow_f_out)
+
+        return flows[::-1]
 
     def decode_level_res(
         self,
         level: int,
         flow_1: torch.Tensor,
-        flow_2: torch.Tensor,
         feature_1: torch.Tensor,
         feature_1_1x1: torch.Tensor,
         feature_2: torch.Tensor,
@@ -529,11 +509,10 @@ class UPFlowNet(nn.Module):
         img_ori_2: torch.Tensor,
     ):
         flow_1_up_bilinear = upsample2d_flow_as(flow_1, feature_1, mode="bilinear", if_rate=True)
-        flow_2_up_bilinear = upsample2d_flow_as(flow_2, feature_2, mode="bilinear", if_rate=True)
+
         # warping
         if level == 0:
             feature_2_warp = feature_2
-            feature_1_warp = feature_1
         else:
             if self.if_sgu_upsample:
                 flow_1_up_bilinear = self.self_guided_upsample(
@@ -541,13 +520,8 @@ class UPFlowNet(nn.Module):
                     feature_1=feature_1_1x1,
                     feature_2=feature_2_1x1,
                 )
-                flow_2_up_bilinear = self.self_guided_upsample(
-                    flow_up_bilinear=flow_2_up_bilinear,
-                    feature_1=feature_2_1x1,
-                    feature_2=feature_1_1x1,
-                )
             feature_2_warp = self.warping_layer(feature_2, flow_1_up_bilinear)
-            feature_1_warp = self.warping_layer(feature_1, flow_2_up_bilinear)
+
         # if norm feature
         if self.if_norm_before_cost_volume:
             feature_1, feature_2_warp = normalize_features(
@@ -557,33 +531,19 @@ class UPFlowNet(nn.Module):
                 moments_across_channels=self.norm_moments_across_channels,
                 moments_across_images=self.norm_moments_across_images,
             )
-            feature_2, feature_1_warp = normalize_features(
-                (feature_2, feature_1_warp),
-                normalize=True,
-                center=True,
-                moments_across_channels=self.norm_moments_across_channels,
-                moments_across_images=self.norm_moments_across_images,
-            )
+
         # correlation
         out_corr_1 = self.correlation_pytorch(feature_1, feature_2_warp)
-        out_corr_2 = self.correlation_pytorch(feature_2, feature_1_warp)
         out_corr_relu_1 = F.leaky_relu_(out_corr_1, negative_slope=0.1)
-        out_corr_relu_2 = F.leaky_relu_(out_corr_2, negative_slope=0.1)
 
         feature_int_1, flow_res_1 = self.flow_estimators(
             torch.cat([out_corr_relu_1, feature_1_1x1, flow_1_up_bilinear], dim=1)
         )
-        feature_int_2, flow_res_2 = self.flow_estimators(
-            torch.cat([out_corr_relu_2, feature_2_1x1, flow_2_up_bilinear], dim=1)
-        )
         flow_1_up_bilinear_ = flow_1_up_bilinear + flow_res_1
-        flow_2_up_bilinear_ = flow_2_up_bilinear + flow_res_2
         flow_fine_1 = self.context_networks(torch.cat([feature_int_1, flow_1_up_bilinear_], dim=1))
-        flow_fine_2 = self.context_networks(torch.cat([feature_int_2, flow_2_up_bilinear_], dim=1))
         flow_1_res = flow_res_1 + flow_fine_1
-        flow_2_res = flow_res_2 + flow_fine_2
 
-        return flow_1_up_bilinear, flow_2_up_bilinear, flow_1_res, flow_2_res
+        return flow_1_up_bilinear, flow_1_res
 
     def self_guided_upsample(self, flow_up_bilinear, feature_1, feature_2, output_level_flow=None):
         flow_up_bilinear_, out_flow, inter_flow, inter_mask = self.sgi_model(

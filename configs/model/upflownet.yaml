@@ -1,0 +1,19 @@
+_target_: src.models.opticalflow_module.OpticalFlowModule
+
+weights: [1, 0.5, 0.25, 0.125, 0.125, 0.125]
+
+optimizer:
+  _target_: torch.optim.AdamW
+  _partial_: true
+  lr: 0.001
+  weight_decay: 0.0
+
+net:
+  _target_: src.models.components.upflownet.UPFlowNet
+  num_chs: [3, 16, 32, 64, 96, 128, 196]
+  output_level: 4 # decode until num_chs[:-output_level-1]
+  search_range: 4
+  if_norm_before_cost_volume: true
+  norm_moments_across_channels: true
+  norm_moments_across_images: false # False recommended for small batch case, though set True in UFlow and UPFlow
+  if_sgu_upsample: true
