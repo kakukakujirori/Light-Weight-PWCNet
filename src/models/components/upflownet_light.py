@@ -1,5 +1,6 @@
 """Borrowed from https://github.com/coolbeam/UPFlow_pytorch."""
 from collections import defaultdict
+from tokenize import group
 
 import torch
 import torch.nn as nn
@@ -17,44 +18,81 @@ def conv(
     IN_affine: bool = False,
     if_BN: bool = False,
 ):
+    assert kernel_size > 1 or stride == 1
     if isReLU:
         if if_IN:
             return nn.Sequential(
                 nn.Conv2d(
                     in_planes,
-                    out_planes,
+                    in_planes,
                     kernel_size=kernel_size,
                     stride=stride,
                     dilation=dilation,
                     padding=((kernel_size - 1) * dilation) // 2,
-                    bias=True,
+                    bias=False,
+                    groups=in_planes,
+                )
+                if kernel_size > 1
+                else nn.Identity(),
+                nn.Conv2d(
+                    in_planes,
+                    out_planes,
+                    kernel_size=1,
+                    stride=1,
+                    dilation=1,
+                    padding=0,
+                    bias=False,
                 ),
-                nn.LeakyReLU(0.1, inplace=True),
                 nn.InstanceNorm2d(out_planes, affine=IN_affine),
+                nn.LeakyReLU(0.1, inplace=True),
             )
         elif if_BN:
             return nn.Sequential(
                 nn.Conv2d(
                     in_planes,
-                    out_planes,
+                    in_planes,
                     kernel_size=kernel_size,
                     stride=stride,
                     dilation=dilation,
                     padding=((kernel_size - 1) * dilation) // 2,
-                    bias=True,
+                    bias=False,
+                    groups=in_planes,
+                )
+                if kernel_size > 1
+                else nn.Identity(),
+                nn.Conv2d(
+                    in_planes,
+                    out_planes,
+                    kernel_size=1,
+                    stride=1,
+                    dilation=1,
+                    padding=0,
+                    bias=False,
                 ),
-                nn.LeakyReLU(0.1, inplace=True),
                 nn.BatchNorm2d(out_planes, affine=IN_affine),
+                nn.LeakyReLU(0.1, inplace=True),
             )
         else:
             return nn.Sequential(
                 nn.Conv2d(
                     in_planes,
-                    out_planes,
+                    in_planes,
                     kernel_size=kernel_size,
                     stride=stride,
                     dilation=dilation,
                     padding=((kernel_size - 1) * dilation) // 2,
+                    bias=False,
+                    groups=in_planes,
+                )
+                if kernel_size > 1
+                else nn.Identity(),
+                nn.Conv2d(
+                    in_planes,
+                    out_planes,
+                    kernel_size=1,
+                    stride=1,
+                    dilation=1,
+                    padding=0,
                     bias=True,
                 ),
                 nn.LeakyReLU(0.1, inplace=True),
@@ -64,12 +102,24 @@ def conv(
             return nn.Sequential(
                 nn.Conv2d(
                     in_planes,
-                    out_planes,
+                    in_planes,
                     kernel_size=kernel_size,
                     stride=stride,
                     dilation=dilation,
                     padding=((kernel_size - 1) * dilation) // 2,
-                    bias=True,
+                    bias=False,
+                    groups=in_planes,
+                )
+                if kernel_size > 1
+                else nn.Identity(),
+                nn.Conv2d(
+                    in_planes,
+                    out_planes,
+                    kernel_size=1,
+                    stride=0,
+                    dilation=1,
+                    padding=0,
+                    bias=False,
                 ),
                 nn.InstanceNorm2d(out_planes, affine=IN_affine),
             )
@@ -77,12 +127,24 @@ def conv(
             return nn.Sequential(
                 nn.Conv2d(
                     in_planes,
-                    out_planes,
+                    in_planes,
                     kernel_size=kernel_size,
                     stride=stride,
                     dilation=dilation,
                     padding=((kernel_size - 1) * dilation) // 2,
-                    bias=True,
+                    bias=False,
+                    groups=in_planes,
+                )
+                if kernel_size > 1
+                else nn.Identity(),
+                nn.Conv2d(
+                    in_planes,
+                    out_planes,
+                    kernel_size=1,
+                    stride=1,
+                    dilation=1,
+                    padding=0,
+                    bias=False,
                 ),
                 nn.BatchNorm2d(out_planes, affine=IN_affine),
             )
@@ -90,13 +152,25 @@ def conv(
             return nn.Sequential(
                 nn.Conv2d(
                     in_planes,
-                    out_planes,
+                    in_planes,
                     kernel_size=kernel_size,
                     stride=stride,
                     dilation=dilation,
                     padding=((kernel_size - 1) * dilation) // 2,
                     bias=True,
+                    groups=in_planes,
                 )
+                if kernel_size > 1
+                else nn.Identity(),
+                nn.Conv2d(
+                    in_planes,
+                    out_planes,
+                    kernel_size=1,
+                    stride=1,
+                    dilation=1,
+                    padding=0,
+                    bias=True,
+                ),
             )
 
 
@@ -164,12 +238,12 @@ def torch_warp(x: torch.Tensor, flo: torch.Tensor) -> torch.Tensor:
     x: [B, C, H, W] (im2)
     flo: [B, 2, H, W] flow
     """
-    B, _, H, W = x.size()
+    _, _, H, W = x.size()
     # mesh grid
     xx = torch.arange(0, W, device=x.device).view(1, -1).repeat(H, 1)
     yy = torch.arange(0, H, device=x.device).view(-1, 1).repeat(1, W)
-    xx = xx.view(1, 1, H, W).repeat(B, 1, 1, 1)
-    yy = yy.view(1, 1, H, W).repeat(B, 1, 1, 1)
+    xx = xx.view(1, 1, H, W)
+    yy = yy.view(1, 1, H, W)
     grid = torch.cat((xx, yy), 1) + 0.5
     vgrid = grid + flo
     # scale grid to [-1,1]
@@ -201,31 +275,6 @@ class FeatureExtractor(nn.Module):
             feature_pyramid.append(x)
 
         return feature_pyramid[::-1]
-
-
-class WarpingLayer_no_div(nn.Module):
-    def __init__(self):
-        super().__init__()
-
-    def forward(self, x: torch.Tensor, flow: torch.Tensor) -> torch.Tensor:
-        B, _, H, W = x.size()
-        # mesh grid
-        xx = torch.arange(0, W, device=x.device).view(1, -1).repeat(H, 1)
-        yy = torch.arange(0, H, device=x.device).view(-1, 1).repeat(1, W)
-        xx = xx.view(1, 1, H, W).repeat(B, 1, 1, 1)
-        yy = yy.view(1, 1, H, W).repeat(B, 1, 1, 1)
-        grid = torch.cat((xx, yy), dim=1) + 0.5
-        vgrid = grid + flow
-        # scale grid to [-1,1]
-        vgrid[:, 0, :, :] = 2.0 * vgrid[:, 0, :, :] / W - 1.0
-        vgrid[:, 1, :, :] = 2.0 * vgrid[:, 1, :, :] / H - 1.0
-        vgrid = vgrid.permute(0, 2, 3, 1)  # B H,W,C
-        x_warp = F.grid_sample(x, vgrid, padding_mode="zeros", align_corners=False)
-        # mask
-        mask = torch.ones(x.size(), device=x.device, requires_grad=False)
-        mask = F.grid_sample(mask, vgrid, align_corners=False)
-        mask = (mask >= 1.0).float()
-        return x_warp * mask
 
 
 class Corr_pyTorch(nn.Module):
@@ -264,47 +313,29 @@ class Corr_pyTorch(nn.Module):
 
 class FlowEstimatorDense_v2(nn.Module):
     def __init__(
-        self, ch_in: int, f_channels: list[int] = (128, 128, 96, 64, 32), out_channel: int = 2
+        self, ch_in: int, f_channels: list[int] = (128, 128, 96, 64, 32), ch_out: int = 2
     ):
         super().__init__()
-        N = 0
-        ind = 0
-        N += ch_in
-        self.conv1 = conv(N, f_channels[ind])
-        N += f_channels[ind]
-
-        ind += 1
-        self.conv2 = conv(N, f_channels[ind])
-        N += f_channels[ind]
-
-        ind += 1
-        self.conv3 = conv(N, f_channels[ind])
-        N += f_channels[ind]
-
-        ind += 1
-        self.conv4 = conv(N, f_channels[ind])
-        N += f_channels[ind]
-
-        ind += 1
-        self.conv5 = conv(N, f_channels[ind])
-        N += f_channels[ind]
+        N = ch_in
+        self.conv_list = nn.ModuleList()
+        for ch in f_channels:
+            self.conv_list.append(conv(N, ch))
+            N += ch
+        self.conv_last = conv(N, ch_out, isReLU=False)
         self.n_channels = N
-        ind += 1
-        self.conv_last = conv(N, out_channel, isReLU=False)
 
     def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
-        x1 = torch.cat([self.conv1(x), x], dim=1)
-        x2 = torch.cat([self.conv2(x1), x1], dim=1)
-        x3 = torch.cat([self.conv3(x2), x2], dim=1)
-        x4 = torch.cat([self.conv4(x3), x3], dim=1)
-        x5 = torch.cat([self.conv5(x4), x4], dim=1)
-        x_out = self.conv_last(x5)
-        return x5, x_out
+        for conv_layer in self.conv_list:
+            x = torch.cat([conv_layer(x), x], dim=1)
+        x_out = self.conv_last(x)
+        return x, x_out
 
 
 class ContextNetwork_v2_(nn.Module):
     def __init__(self, ch_in: int, f_channels: list[int] = (128, 128, 128, 96, 64, 32, 2)):
         super().__init__()
+        assert len(f_channels) == 7, f"{f_channels=} must have length 7"
+        assert f_channels[-1] == 2, f"{f_channels=} must end with 2"
         self.convs = nn.Sequential(
             conv(ch_in, f_channels[0], 3, 1, 1),
             conv(f_channels[0], f_channels[1], 3, 1, 2),
@@ -319,55 +350,12 @@ class ContextNetwork_v2_(nn.Module):
         return self.convs(x)
 
 
-class FlowEstimatorDense_temp(nn.Module):
-    def __init__(
-        self, ch_in: int, f_channels: list[int] = (128, 128, 96, 64, 32), ch_out: int = 2
-    ):
-        super().__init__()
-        N = 0
-        ind = 0
-        N += ch_in
-        self.conv1 = conv(N, f_channels[ind])
-        N += f_channels[ind]
-
-        ind += 1
-        self.conv2 = conv(N, f_channels[ind])
-        N += f_channels[ind]
-
-        ind += 1
-        self.conv3 = conv(N, f_channels[ind])
-        N += f_channels[ind]
-
-        ind += 1
-        self.conv4 = conv(N, f_channels[ind])
-        N += f_channels[ind]
-
-        ind += 1
-        self.conv5 = conv(N, f_channels[ind])
-        N += f_channels[ind]
-        self.num_feature_channel = N
-        ind += 1
-        self.conv_last = conv(N, ch_out, isReLU=False)
-
-    def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
-        x1 = torch.cat([self.conv1(x), x], dim=1)
-        x2 = torch.cat([self.conv2(x1), x1], dim=1)
-        x3 = torch.cat([self.conv3(x2), x2], dim=1)
-        x4 = torch.cat([self.conv4(x3), x3], dim=1)
-        x5 = torch.cat([self.conv5(x4), x4], dim=1)
-        x_out = self.conv_last(x5)
-        return x5, x_out
-
-
 class SGUModel(nn.Module):
     def __init__(self):
         super().__init__()
         f_channels_es = (32, 32, 32, 16, 8)
         in_C = 64
-        self.warping_layer = WarpingLayer_no_div()
-        self.dense_estimator_mask = FlowEstimatorDense_temp(
-            in_C, f_channels=f_channels_es, ch_out=3
-        )
+        self.dense_estimator_mask = FlowEstimatorDense_v2(in_C, f_channels=f_channels_es, ch_out=3)
         self.upsample_output_conv = nn.Sequential(
             conv(3, 16, kernel_size=3, stride=1, dilation=1),
             conv(16, 16, stride=2),
@@ -380,7 +368,7 @@ class SGUModel(nn.Module):
         n_f, c_f, h_f, w_f = feature_1.shape
         if h != h_f or w != w_f:
             flow_init = upsample2d_flow_as(flow_init, feature_1, mode="bilinear", if_rate=True)
-        feature_2_warp = self.warping_layer(feature_2, flow_init)
+        feature_2_warp = torch_warp(feature_2, flow_init)
         input_feature = torch.cat((feature_1, feature_2_warp), dim=1)
         feature, x_out = self.dense_estimator_mask(input_feature)
         inter_flow = x_out[:, 0:2, :, :]
@@ -401,14 +389,14 @@ class SGUModel(nn.Module):
         return self.upsample_output_conv(x)
 
 
-class UPFlowNet(nn.Module):
+class UPFlowNetLight(nn.Module):
     def __init__(
         self,
         num_chs: list[int] = [3, 16, 32, 64, 96, 128, 196],
         output_level: int = 2,  # decode until num_chs[output_level]
         estimator_f_channels: list[int] = (128, 128, 96, 64, 32),
         context_f_channels: list[int] = (128, 128, 128, 96, 64, 32, 2),
-        search_range: int = 4,
+        search_range: int = 2,
         if_norm_before_cost_volume: bool = True,
         norm_moments_across_channels: bool = True,
         norm_moments_across_images: bool = False,  # False recommended for small batch case, though set True in UFlow and UPFlow
@@ -416,7 +404,7 @@ class UPFlowNet(nn.Module):
     ) -> None:
         super().__init__()
         # === build the network
-        self.num_chs = num_chs  # [1/2, 1/4, 1/8, 1/16, 1/32, 1/64]
+        self.num_chs = num_chs  # [1/1, 1/2, 1/4, 1/8, 1/16, 1/32, 1/64]
         self.output_level = output_level
         self.search_range = search_range
         self.if_norm_before_cost_volume = if_norm_before_cost_volume
@@ -430,7 +418,6 @@ class UPFlowNet(nn.Module):
         self.num_ch_in = self.dim_corr + 32 + 2
 
         self.feature_pyramid_extractor = FeatureExtractor(self.num_chs)
-        self.warping_layer = WarpingLayer_no_div()
         self.flow_estimators = FlowEstimatorDense_v2(
             self.num_ch_in, f_channels=self.estimator_f_channels
         )
@@ -516,7 +503,7 @@ class UPFlowNet(nn.Module):
                     feature_1=feature_1_1x1,
                     feature_2=feature_2_1x1,
                 )
-            feature_2_warp = self.warping_layer(feature_2, flow_1_up_bilinear)
+            feature_2_warp = torch_warp(feature_2, flow_1_up_bilinear)
 
         # if norm feature
         if self.if_norm_before_cost_volume:

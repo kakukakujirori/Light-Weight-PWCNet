@@ -71,9 +71,7 @@ class OpticalFlowModule(LightningModule):
         del list_of_flows
 
         # loss (be aware to align the cale of flow vectors)
-        assert len(pred_list) <= len(
-            self.hparams.weights
-        ), f"{len(pred_list)=}, {len(self.hparams.weights)=}"
+        assert len(pred_list) <= len(self.hparams.weights)
         loss = 0
         for i, (pred, w) in enumerate(zip(pred_list, self.hparams.weights)):
             gt_small = F.interpolate(gt, pred.shape[-2:], mode="bilinear")
@@ -109,7 +107,11 @@ class OpticalFlowModule(LightningModule):
             self.logger.experiment.add_images(
                 "train/pred", flow_to_image(preds), self.current_epoch
             )
-            self.logger.experiment.add_images("train/gt", flow_to_image(gts), self.current_epoch)
+            self.logger.experiment.add_images(
+                "train/gt",
+                flow_to_image(gts),
+                self.current_epoch,
+            )
 
         # we can return here dict with any tensors
         # and then read it in some callback or in `training_epoch_end()` below
@@ -140,8 +142,16 @@ class OpticalFlowModule(LightningModule):
                 torch.clip(batch["img2"] * 255, 0, 255).to(torch.uint8),
                 self.current_epoch,
             )
-            self.logger.experiment.add_images("val/pred", flow_to_image(preds), self.current_epoch)
-            self.logger.experiment.add_images("val/gt", flow_to_image(gts), self.current_epoch)
+            self.logger.experiment.add_images(
+                "val/pred",
+                flow_to_image(preds),
+                self.current_epoch,
+            )
+            self.logger.experiment.add_images(
+                "val/gt",
+                flow_to_image(gts),
+                self.current_epoch,
+            )
 
         return loss
 
@@ -183,5 +193,5 @@ if __name__ == "__main__":
     import pyrootutils
 
     root = pyrootutils.setup_root(__file__, pythonpath=True)
-    cfg = omegaconf.OmegaConf.load(root / "configs" / "model" / "pwcnet.yaml")
+    cfg = omegaconf.OmegaConf.load(root / "configs" / "model" / "upflownet_light.yaml")
     _ = hydra.utils.instantiate(cfg)
