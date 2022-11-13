@@ -1,6 +1,5 @@
 """Borrowed from https://github.com/coolbeam/UPFlow_pytorch."""
 from collections import defaultdict
-from tokenize import group
 
 import torch
 import torch.nn as nn
@@ -29,7 +28,7 @@ def conv(
                     stride=stride,
                     dilation=dilation,
                     padding=((kernel_size - 1) * dilation) // 2,
-                    bias=False,
+                    bias=True,
                     groups=in_planes,
                 )
                 if kernel_size > 1
@@ -41,10 +40,10 @@ def conv(
                     stride=1,
                     dilation=1,
                     padding=0,
-                    bias=False,
+                    bias=True,
                 ),
-                nn.InstanceNorm2d(out_planes, affine=IN_affine),
                 nn.LeakyReLU(0.1, inplace=True),
+                nn.InstanceNorm2d(out_planes, affine=IN_affine),
             )
         elif if_BN:
             return nn.Sequential(
@@ -55,7 +54,7 @@ def conv(
                     stride=stride,
                     dilation=dilation,
                     padding=((kernel_size - 1) * dilation) // 2,
-                    bias=False,
+                    bias=True,
                     groups=in_planes,
                 )
                 if kernel_size > 1
@@ -67,10 +66,10 @@ def conv(
                     stride=1,
                     dilation=1,
                     padding=0,
-                    bias=False,
+                    bias=True,
                 ),
-                nn.BatchNorm2d(out_planes, affine=IN_affine),
                 nn.LeakyReLU(0.1, inplace=True),
+                nn.BatchNorm2d(out_planes, affine=IN_affine),
             )
         else:
             return nn.Sequential(
@@ -81,7 +80,7 @@ def conv(
                     stride=stride,
                     dilation=dilation,
                     padding=((kernel_size - 1) * dilation) // 2,
-                    bias=False,
+                    bias=True,
                     groups=in_planes,
                 )
                 if kernel_size > 1
@@ -107,7 +106,7 @@ def conv(
                     stride=stride,
                     dilation=dilation,
                     padding=((kernel_size - 1) * dilation) // 2,
-                    bias=False,
+                    bias=True,
                     groups=in_planes,
                 )
                 if kernel_size > 1
@@ -132,7 +131,7 @@ def conv(
                     stride=stride,
                     dilation=dilation,
                     padding=((kernel_size - 1) * dilation) // 2,
-                    bias=False,
+                    bias=True,
                     groups=in_planes,
                 )
                 if kernel_size > 1
@@ -321,8 +320,8 @@ class FlowEstimatorDense_v2(nn.Module):
         for ch in f_channels:
             self.conv_list.append(conv(N, ch))
             N += ch
-        self.conv_last = conv(N, ch_out, isReLU=False)
         self.n_channels = N
+        self.conv_last = conv(N, ch_out, isReLU=False)
 
     def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         for conv_layer in self.conv_list:

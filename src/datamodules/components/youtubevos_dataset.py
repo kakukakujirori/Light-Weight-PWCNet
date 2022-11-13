@@ -41,7 +41,7 @@ class ZipReader:
 
 
 class YouTubeVOSDataset(Dataset):
-    """Dataset for video depth estimation task.
+    """Dataset for optical flow estimation task.
 
     Params:
         data_root (str): The directory in which video data are stored
