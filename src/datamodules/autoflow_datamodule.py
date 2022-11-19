@@ -1,14 +1,16 @@
 from typing import Any, Dict, Optional
-from pytorch_lightning import LightningDataModule
+
 import torch
+import torchvision.transforms as T
+from pytorch_lightning import LightningDataModule
 from torch.utils.data import DataLoader, Dataset
 from torchvision.datasets import Sintel
-import torchvision.transforms as T
+
 from src.datamodules.components.autoflow_dataset import AutoFlowDataset
 
 
 def sintel_transforms(img1, img2, flow, valid_flow_mask=None):
-    """DO NOT RESIZE FROM 436x1024"""
+    """DO NOT RESIZE FROM 436x1024."""
     totensor = T.ToTensor()
     return totensor(img1), totensor(img2), torch.from_numpy(flow), None
 
@@ -83,15 +85,15 @@ class AutoFlowDataModule(LightningDataModule):
             )
             self.data_val = Sintel(
                 self.hparams.val_data_dir,
-                split='train',
-                pass_name='clean',
+                split="train",
+                pass_name="clean",
                 transforms=sintel_transforms,
             )
         if stage == "test" and not self.data_test:
             self.data_test = Sintel(
                 self.hparams.test_data_dir,
-                split='train',  # test is not accompanied by GT flow
-                pass_name='clean',
+                split="train",  # test is not accompanied by GT flow
+                pass_name="clean",
                 transforms=sintel_transforms,
             )
 

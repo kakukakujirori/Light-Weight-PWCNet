@@ -234,7 +234,11 @@ def warp(
             additional_targets={"mask": "image", "coord": "image"},
         )
         warped = aug(image=img, mask=fg_mask, coord=coord)
-        return warped["image"], warped["mask"].astype(bool), coord - warped["coord"]  # this is the forward-warp
+        return (
+            warped["image"],
+            warped["mask"].astype(bool),
+            coord - warped["coord"],  # this is the forward-warp
+        )
 
 
 def compose(
