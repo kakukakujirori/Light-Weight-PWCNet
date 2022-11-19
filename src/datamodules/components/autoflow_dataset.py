@@ -80,7 +80,7 @@ class AutoFlowDataset(Dataset):
     def __len__(self) -> int:
         return len(self.image_paths)
 
-    def __getitem__(self, index: int) -> torch.Tensor:
+    def __getitem__(self, index: int) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         bg = cv2.imread(self.image_paths[index])
         fg_paths = random.sample(self.image_paths, self.layer_num - 1)
         fgs = [cv2.imread(fg_path) for fg_path in fg_paths]
@@ -153,7 +153,7 @@ class AutoFlowDataset(Dataset):
         warped = self.totensor(image=warped)["image"]
         flow = self.totensor(image=flow)["image"]
 
-        return {"original": original, "warped": warped, "flow": flow}
+        return original, warped, flow
 
 
 def create_polygon_mask(
@@ -234,7 +234,7 @@ def warp(
             additional_targets={"mask": "image", "coord": "image"},
         )
         warped = aug(image=img, mask=fg_mask, coord=coord)
-        return warped["image"], warped["mask"].astype(bool), warped["coord"] - coord
+        return warped["image"], warped["mask"].astype(bool), coord - warped["coord"]  # this is the forward-warp
 
 
 def compose(

@@ -4,7 +4,6 @@ import torch
 import torch.nn.functional as F
 from pytorch_lightning import LightningModule
 from pytorch_lightning.loggers import TensorBoardLogger
-from torchvision.models.optical_flow import Raft_Large_Weights, raft_large
 from torchvision.utils import flow_to_image
 
 from src.models.components.metric import EPE
@@ -38,12 +37,6 @@ class OpticalFlowModule(LightningModule):
 
         self.net = net
 
-        raft_weights = Raft_Large_Weights.DEFAULT
-        self.raft_transforms = raft_weights.transforms()
-        self.raft = raft_large(weights=raft_weights, progress=False).eval()
-        for p in self.raft.parameters():
-            p.requires_grad_(False)
-
         # loss function
         self.criterion = torch.nn.L1Loss()
 
@@ -59,36 +52,29 @@ class OpticalFlowModule(LightningModule):
         pass
 
     def step(self, batch: Any):
-        # student
-        img1, img2 = batch["img1"], batch["img2"]
+        img1, img2, gt_flow = batch
         pred_list = self.forward(img1, img2)
-
-        # teacher
-        img1_raft, img2_raft = self.raft_transforms(img1, img2)
-        with torch.no_grad():
-            list_of_flows = self.raft(img1_raft, img2_raft)
-        gt = list_of_flows[-1]
-        del list_of_flows
 
         # loss (be aware to align the cale of flow vectors)
         assert len(pred_list) <= len(self.hparams.weights)
         loss = 0
         for i, (pred, w) in enumerate(zip(pred_list, self.hparams.weights)):
-            gt_small = F.interpolate(gt, pred.shape[-2:], mode="bilinear")
+            gt_small = F.interpolate(gt_flow, pred.shape[-2:], mode="bilinear")
             loss += self.criterion(pred * (i + 1), gt_small) * w
 
         pred_out = pred_list[0]
-        pred_out[:, 0, :, :] *= gt.shape[-1] / pred_list[0].shape[-1]
-        pred_out[:, 1, :, :] *= gt.shape[-2] / pred_list[0].shape[-2]
-        pred_out = F.interpolate(pred_out, size=gt.shape[-2:], mode="bilinear")
+        pred_out[:, 0, :, :] *= gt_flow.shape[-1] / pred_out.shape[-1]
+        pred_out[:, 1, :, :] *= gt_flow.shape[-2] / pred_out.shape[-2]
+        pred_out = F.interpolate(pred_out, size=gt_flow.shape[-2:], mode="bilinear")
 
-        return loss, pred_out, gt
+        return loss, pred_out
 
     def training_step(self, batch: Any, batch_idx: int):
-        loss, preds, gts = self.step(batch)
+        img1, img2, gt_flow = batch
+        loss, pred_flow = self.step(batch)
 
         # log train metrics
-        epe = self.epe(preds, gts)
+        epe = self.epe(pred_flow, gt_flow)
         self.log("train/loss", loss, on_step=False, on_epoch=True, prog_bar=False)
         self.log("train/epe", epe, on_step=False, on_epoch=True, prog_bar=True)
 
@@ -96,20 +82,20 @@ class OpticalFlowModule(LightningModule):
         if batch_idx == 0 and isinstance(self.logger, TensorBoardLogger):
             self.logger.experiment.add_images(
                 "train/image1",
-                torch.clip(batch["img1"] * 255, 0, 255).to(torch.uint8),
+                torch.clip(img1 * 255, 0, 255).to(torch.uint8),
                 self.current_epoch,
             )
             self.logger.experiment.add_images(
                 "train/image2",
-                torch.clip(batch["img2"] * 255, 0, 255).to(torch.uint8),
+                torch.clip(img2 * 255, 0, 255).to(torch.uint8),
                 self.current_epoch,
             )
             self.logger.experiment.add_images(
-                "train/pred", flow_to_image(preds), self.current_epoch
+                "train/pred", flow_to_image(pred_flow), self.current_epoch
             )
             self.logger.experiment.add_images(
                 "train/gt",
-                flow_to_image(gts),
+                flow_to_image(gt_flow),
                 self.current_epoch,
             )
 
@@ -123,10 +109,11 @@ class OpticalFlowModule(LightningModule):
         pass
 
     def validation_step(self, batch: Any, batch_idx: int):
-        loss, preds, gts = self.step(batch)
+        img1, img2, gt_flow = batch
+        loss, pred_flow = self.step(batch)
 
         # log val metrics
-        epe = self.epe(preds, gts)
+        epe = self.epe(pred_flow, gt_flow)
         self.log("val/loss", loss, on_step=False, on_epoch=True, prog_bar=False)
         self.log("val/epe", epe, on_step=False, on_epoch=True, prog_bar=True)
 
@@ -134,22 +121,22 @@ class OpticalFlowModule(LightningModule):
         if batch_idx == 0 and isinstance(self.logger, TensorBoardLogger):
             self.logger.experiment.add_images(
                 "val/image1",
-                torch.clip(batch["img1"] * 255, 0, 255).to(torch.uint8),
+                torch.clip(img1 * 255, 0, 255).to(torch.uint8),
                 self.current_epoch,
             )
             self.logger.experiment.add_images(
                 "val/image2",
-                torch.clip(batch["img2"] * 255, 0, 255).to(torch.uint8),
+                torch.clip(img2 * 255, 0, 255).to(torch.uint8),
                 self.current_epoch,
             )
             self.logger.experiment.add_images(
                 "val/pred",
-                flow_to_image(preds),
+                flow_to_image(pred_flow),
                 self.current_epoch,
             )
             self.logger.experiment.add_images(
                 "val/gt",
-                flow_to_image(gts),
+                flow_to_image(gt_flow),
                 self.current_epoch,
             )
 
@@ -159,10 +146,11 @@ class OpticalFlowModule(LightningModule):
         pass
 
     def test_step(self, batch: Any, batch_idx: int):
-        loss, preds, gts = self.step(batch)
+        img1, img2, gt_flow = batch
+        loss, pred_flow = self.step(batch)
 
         # log test metrics
-        epe = self.epe(preds, gts)
+        epe = self.epe(pred_flow, gt_flow)
         self.log("test/loss", loss, on_step=False, on_epoch=True)
         self.log("test/epe", epe, on_step=False, on_epoch=True)
 

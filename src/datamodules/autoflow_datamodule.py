@@ -1,9 +1,16 @@
 from typing import Any, Dict, Optional
-
 from pytorch_lightning import LightningDataModule
+import torch
 from torch.utils.data import DataLoader, Dataset
-
+from torchvision.datasets import Sintel
+import torchvision.transforms as T
 from src.datamodules.components.autoflow_dataset import AutoFlowDataset
+
+
+def sintel_transforms(img1, img2, flow, valid_flow_mask=None):
+    """DO NOT RESIZE FROM 436x1024"""
+    totensor = T.ToTensor()
+    return totensor(img1), totensor(img2), torch.from_numpy(flow), None
 
 
 class AutoFlowDataModule(LightningDataModule):
@@ -74,24 +81,18 @@ class AutoFlowDataModule(LightningDataModule):
                 self.hparams.motion_blur_prob,
                 self.hparams.fog_prob,
             )
-            self.data_val = AutoFlowDataset(
+            self.data_val = Sintel(
                 self.hparams.val_data_dir,
-                self.hparams.layer_num,
-                self.hparams.width,
-                self.hparams.height,
-                self.hparams.gaussian_blur_prob,
-                self.hparams.motion_blur_prob,
-                self.hparams.fog_prob,
+                split='train',
+                pass_name='clean',
+                transforms=sintel_transforms,
             )
         if stage == "test" and not self.data_test:
-            self.data_test = AutoFlowDataset(
+            self.data_test = Sintel(
                 self.hparams.test_data_dir,
-                self.hparams.layer_num,
-                self.hparams.width,
-                self.hparams.height,
-                self.hparams.gaussian_blur_prob,
-                self.hparams.motion_blur_prob,
-                self.hparams.fog_prob,
+                split='train',  # test is not accompanied by GT flow
+                pass_name='clean',
+                transforms=sintel_transforms,
             )
 
     def train_dataloader(self):

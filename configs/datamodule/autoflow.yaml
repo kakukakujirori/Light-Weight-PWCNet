@@ -1,0 +1,14 @@
+_target_: src.datamodules.autoflow_datamodule.AutoFlowDataModule
+
+train_data_dir: ${paths.data_dir}
+val_data_dir: ${paths.data_dir}
+test_data_dir: ${paths.data_dir}
+layer_num: 4
+width: 640
+height: 640
+gaussian_blur_prob: 0.2
+motion_blur_prob: 0.2
+fog_prob: 0.05
+batch_size: 8
+num_workers: 4
+pin_memory: true
