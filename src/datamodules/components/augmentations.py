@@ -1,12 +1,10 @@
-"""
-Modified from
-    albumentations/augmentations/geometric/functional.py
-in order to get optical flow.
-"""
+"""Modified from albumentations/augmentations/geometric/functional.py in order to get optical
+flow."""
 import random
 from typing import Optional, Union
-import numpy as np
+
 import cv2
+import numpy as np
 
 __all__ = [
     "randomPerspective",
@@ -190,13 +188,17 @@ def randomPerspective(
 
     if isinstance(imgs, np.ndarray):
         mat = get_perspective_mat(*imgs.shape[:2], scale)
-        warped, flow = perspective(imgs, mat, border_val=pad_val, border_mode=pad_mode, interpolation=interpolation)
+        warped, flow = perspective(
+            imgs, mat, border_val=pad_val, border_mode=pad_mode, interpolation=interpolation
+        )
         return warped, flow
     else:
         warped_imgs = []
         for img in imgs:
             mat = get_perspective_mat(*imgs[0].shape[:2], scale)
-            warped, flow = perspective(img, mat, border_val=pad_val, border_mode=pad_mode, interpolation=interpolation)
+            warped, flow = perspective(
+                img, mat, border_val=pad_val, border_mode=pad_mode, interpolation=interpolation
+            )
             warped_imgs.append(warped)
         return warped_imgs, flow
 
@@ -209,18 +211,34 @@ def randomGridDistortion(
     border_mode: int = cv2.BORDER_REFLECT_101,
     value: Optional[int] = None,
 ) -> tuple[list[np.ndarray], np.ndarray]:
-    if isinstance(num_steps, Union[tuple, list]):
+    if isinstance(num_steps, tuple) or isinstance(num_steps, list):
         assert len(num_steps) == 2
         assert min(num_steps) >= 2
         num_steps = random.randint(*num_steps)
     xsteps, ysteps = get_grid_distortion_steps(num_steps, distort_limit)
 
     if isinstance(imgs, np.ndarray):
-        warped, flow = grid_distortion(imgs, num_steps, xsteps, ysteps, interpolation=interpolation, border_mode=border_mode, value=value)
+        warped, flow = grid_distortion(
+            imgs,
+            num_steps,
+            xsteps,
+            ysteps,
+            interpolation=interpolation,
+            border_mode=border_mode,
+            value=value,
+        )
         return warped, flow
     else:
         warped_imgs = []
         for img in imgs:
-            warped, flow = grid_distortion(img, num_steps, xsteps, ysteps, interpolation=interpolation, border_mode=border_mode, value=value)
+            warped, flow = grid_distortion(
+                img,
+                num_steps,
+                xsteps,
+                ysteps,
+                interpolation=interpolation,
+                border_mode=border_mode,
+                value=value,
+            )
             warped_imgs.append(warped)
         return warped_imgs, flow
