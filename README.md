@@ -15,8 +15,6 @@
 
 In the paper "Face Deblurring using Dual Camera Fusion on Mobile Phones", they use a light weight version of PWCNet. This repo aims to implement that part by myself.
 
-\[Caution\] This repo has just launched on September 2022, and under construction.
-
 ## How to run
 
 Install dependencies
@@ -37,7 +35,11 @@ conda activate myenv
 pip install -r requirements.txt
 ```
 
-Download [YouTube-VOS](https://competitions.codalab.org/competitions/19544#participate-get-data) dataset (train_all_frames and test_all_frames) under `data/` directory, and upzip them
+Put as many natural images as you have in `data/train/` directory. I use [AutoFlow](https://autoflow-google.github.io/) to automatically generate synthetic data from them.
+
+Also for evaluation, I temporally use Sitel dataset. [Download (5.3GB)](http://files.is.tue.mpg.de/sintel/MPI-Sintel-complete.zip) and place the unzipped folder under `data/` with the name `Sintel/`.
+
+NOTE: The accuracy is currently not satisfactory... Improvement under way.
 
 Train model with default configuration
 
