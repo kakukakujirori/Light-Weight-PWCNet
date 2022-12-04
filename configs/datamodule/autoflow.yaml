@@ -4,8 +4,8 @@ train_data_dir: ${paths.data_dir}/train
 val_data_dir: ${paths.data_dir}
 test_data_dir: ${paths.data_dir}
 layer_num: 4
-width: 640
-height: 640
+width: 384
+height: 384
 gaussian_blur_prob: 0.5
 motion_blur_prob: 0.5
 fog_prob: 0.05

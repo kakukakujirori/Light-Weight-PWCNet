@@ -5,7 +5,7 @@
 defaults:
   - _self_
   - datamodule: autoflow.yaml
-  - model: upflownet.yaml
+  - model: upflownet_lite.yaml
   - callbacks: default.yaml
   - logger: tensorboard.yaml # set logger here or use command line (e.g. `python train.py logger=tensorboard`)
   - trainer: default.yaml
