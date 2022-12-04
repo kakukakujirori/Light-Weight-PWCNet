@@ -3,10 +3,10 @@ from pathlib import Path
 import pytest
 import torch
 
-from src.datamodules.youtubevos_datamodule import YouTubeVOSDataModule
+from src.datamodules.autoflow_datamodule import AutoFlowDataModule
 
 # @pytest.mark.parametrize("batch_size", [2, 4])
-# def test_youtubevos_datamodule(batch_size):
+# def test_autoflow_datamodule(batch_size):
 #     data_dir = "data/"
 
 #     dm = MNISTDataModule(data_dir=data_dir, batch_size=batch_size)
