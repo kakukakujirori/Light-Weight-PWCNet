@@ -1,5 +1,5 @@
-from typing import Optional
 from functools import partial
+from typing import Optional
 
 import torch
 import torch.nn as nn
@@ -15,28 +15,21 @@ class ConvNormAct(nn.Module):
         stride: int = 1,
         dilation: int = 1,
         groups: int = 1,
-        normalization = nn.InstanceNorm2d,
-        activation = partial(nn.ReLU, inplace=True),
+        normalization=nn.InstanceNorm2d,
+        activation=partial(nn.ReLU, inplace=True),
     ) -> None:
         super().__init__()
 
         padding = ((kernel_size - 1) * dilation) // 2
-        use_bias = (normalization == nn.Identity)
+        use_bias = normalization == nn.Identity
 
         self.layer = nn.Sequential(
             nn.Conv2d(
-                in_channels,
-                out_channels,
-                kernel_size,
-                stride,
-                padding,
-                dilation,
-                groups,
-                use_bias),
+                in_channels, out_channels, kernel_size, stride, padding, dilation, groups, use_bias
+            ),
             normalization(out_channels),
             activation(),
         )
-    
+
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.layer(x)
-

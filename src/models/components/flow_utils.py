@@ -45,7 +45,7 @@ def normalize_features(
     for feature_image in feature_list:
         means.append(torch.mean(feature_image, dim=axes, keepdim=True))  # [b,1,1,1] or [b,c,1,1]
         vars.append(torch.var(feature_image, dim=axes, keepdim=True))  # [b,1,1,1] or [b,c,1,1]
-        
+
     if moments_across_images:
         means = [torch.mean(torch.stack(means, dim=0), dim=0)] * len(feature_list)
         vars = [torch.var(torch.stack(vars, dim=0), dim=0)] * len(feature_list)
@@ -75,7 +75,7 @@ def backwarp(x: torch.Tensor, flow: torch.Tensor) -> torch.Tensor:
     xx = xx.view(1, H, W, 1)
     yy = yy.view(1, H, W, 1)
     grid = torch.cat((xx, yy), -1) + 0.5
-    vgrid = grid + flow.permute(0,2,3,1)
+    vgrid = grid + flow.permute(0, 2, 3, 1)
     # scale grid to [-1,1]
     vgrid[:, :, :, 0] = 2.0 * vgrid[:, :, :, 0] / W - 1.0
     vgrid[:, :, :, 1] = 2.0 * vgrid[:, :, :, 1] / H - 1.0
